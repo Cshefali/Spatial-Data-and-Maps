@@ -1,0 +1,202 @@
+---
+title: "Creating Maps using RNaturalEarth Data"
+author: "Shefali C."
+date: '2022-05-24'
+output: 
+        github_document
+---
+
+This was one of the starter projects in my journey to learn/visualize and work with spatial data in R. The original work can be found [here](https://r-spatial.org/r/2018/10/25/ggplot2-sf.html). :)   
+
+
+The rmarkdown file starts with a generalised options function **`opts_chunk$set()`**. Here, all the parameters specified apply to all functions in the entire file.  
+
+For example, 
+**`knitr::opts_chunk$set(fig.height=6, fig.width=6, fig.align='center')`** sets the height and width of all plots in the file to 6 by 6 with central alignment. Many more parameters can be added here to customize the entire file.  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.height=6, fig.width=6, fig.align='center')
+```
+
+### Required libraries  
+In the following code, all the R packages required for this project are loaded.  
+    * **`tidyverse`- ** is required for all the data manipulation tasks and contains **`ggplot`** package which is the foundation of all visualizations here.  
+    * **`sf`** package is required as the maps are sf objects.  
+    * **`rnaturalearth`** is required to fetch all the data.  
+    
+
+```{r loading_libraries,echo=TRUE,message=FALSE, warning=FALSE}
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(ggspatial)
+
+```
+
+The following code:  
+* sets the theme of all plots to black and white theme through function **`theme_bw()`**. One can easily override this theme by specifying another theme in a plot.  
+* **`sf_use_s2(FALSE)`-** Initially in the map, the x-axis was not representing the longitudes properly; there were only 3 values like 0 degree, 90 degree, 180 etc. I wanted to add more degrees in between like 30, 60 etc. Setting this function as "FALSE" did this job.  
+***Found this tip on stack overflow.***
+
+```{r initial_settings}
+#setting the theme to theme_bw()
+theme_set(theme_bw())
+sf::sf_use_s2(FALSE)
+```
+
+In the following code, data about all countries in the world is fetched from the **rnaturalearth** package.  
+    * Data of 241 countries is present in this package.  
+    * **`ne_countries()`** function is used to fetch this data.  
+    * **`returnclass`** has been specified as **"sf"**. There are 2 options available for this argument- **"sp"** & **"sf"**.  
+    * scale has been set to **medium**. 3 options are available- **"small"**, **"medium"** and **"large"**. This controls the size of the plot. For setting the value to **"large"**, loading package **`rnaturalearthhires`** is required. Why?? I don't know yet.  
+
+```{r fetch_data}
+#fetching countries data
+world <- rnaturalearth::ne_countries(returnclass = "sf", scale = "medium")
+```
+
+Instead of explicitly setting theme elements like size of axis titles, size and alignment of plot title etc. in every code snippet, these terms have been generated and stored in **theme_size**.
+
+```{r set_common_theme}
+#setting the size of xlabels, ylabels,title,subtitle to be reused in every plot
+theme_size = theme(axis.title = element_text(size = 9),
+                   plot.title = element_text(size = 11, hjust = 0.5),
+                   plot.subtitle = element_text(size = 10,hjust = 0.5))
+```
+
+### World Map: Projection WGS84 {.tabset .tabset-pills}
+Following are some versions of World map.  
+    * The Basic map is in its very basic form, with no labels or colors.  
+    * In the second map, countries have been colored on the basis of **estimated population variable `pop_est`** present in the dataframe.  
+
+#### Basic  
+* **`world`** object is actually a **"sf"** object; hence **`geom_sf()`** function has been used.  
+* **`color = "black"`** sets the boundary color of each country to black.  
+* **`size = 0.3`** controls the size of the boundary. Since the map is too compact, hence I have kept the size as 0.3 to prevent thick boundaries.  
+* **`world$name`** attribute means the **name** variable in **data** object. It contains the name of all countries.  
+
+```{r basic_world_map, fig.align='center'}
+#plotting basic world map
+ggplot(data = world)+
+  geom_sf(color = "black", size = 0.3, fill = "beige") +
+  coord_sf(expand = FALSE)+
+  labs(x = "Longitude",
+       y = "Latitude",
+      title = "World Map",
+      subtitle = paste0("(",length(unique(world$name))," countries)"))+
+  theme_size
+```
+
+#### Colored  
+* **`fill = pop_est`** colors each country according to the population of that country.  
+* **`coord_sf(expand=false)`- ** By default, **`geom_Sf()`** function has the `coord_sf()` function in it. But I have explicitly mentioned it here, so that the spacing between the actual plot and axis lines gets omitted.  
+    * `expand = true` adds a little distortion in the grid values so that some space gets added between the map and grids.  
+    * `expand = false` removes that space and map fully covers the plot.  
+    
+* **`scale_fill_viridis_c`** provides some really cool color palettes like ***plasma, inferno, viridis*** etc.   
+
+```{r colored_world_map, fig.align='center'}
+#world map plot with color gradients representing estimated population
+ggplot(data = world)+
+  geom_sf(aes(fill = pop_est))+
+  coord_sf(expand = FALSE)+
+  scale_fill_viridis_c(option = "plasma",alpha = 0.7)+
+  labs(x = "Longitude",
+       y = "Latitude",
+       title = "World Map",
+       subtitle = paste0("(",length(unique(world$name))," countries)"))+
+  theme_size
+```
+
+### Methods of Specifying projections {.tabset .tabset-fade}
+
+Projection of any map can be set in many ways.  
+    * In method 1, **`coord_sf(crs = "+init=epsg:3035)`** has been used. As the warning states, this syntax has been deprecated. :|
+    * In method 2, **`coord_sf(crs = st_crs(3035))`** has been used.  
+
+#### Method 1
+
+```{r world_map_proj_3035, fig.align='center'}
+#modifying the projection of the plot as:
+#European-centric ETRS89 Lambert Azimuthal Equal-Area
+ggplot(data = world)+
+  geom_sf(aes(fill = pop_est))+
+  scale_fill_viridis_c(option = "plasma",alpha = 0.7)+
+  coord_sf(crs = "+init=epsg:3035")
+```
+
+#### Method 2
+
+```{r specify_crs_method2, fig.align='center'}
+#Another way to specify CRS using st_crs()
+ggplot(data = world)+
+  geom_sf(aes(fill=pop_est))+
+  scale_fill_viridis_c(option = "viridis",alpha = 0.8)+
+  coord_sf(crs = st_crs(3035))
+```
+
+### Map of India {.tabset .tabset-fade}
+
+I have zoomed into the map of India using the spatial extent of the Indian territory, i.e. the coordinates extent of latitudes and longitudes. 
+
+#### Simple Map
+
+```{r map_india, fig.align='center'}
+#Zooming on the map of India
+ggplot(data = world)+
+  geom_sf(aes(fill = pop_est))+
+  coord_sf(xlim = c(68.7,97.25), ylim = c(8.4,37.6), expand = FALSE)+
+  scale_fill_viridis_c(option = "viridis",alpha=0.8)+
+  labs(x = "Longitude",
+       y = "Latitude",
+       title = "Map Of India",
+       subtitle = "(Zoomed in from the world map)")+
+  theme_size
+```
+
+#### Map with labels  
+
+* **`st_centroid()`- ** This function of **sf** package fetches the centroid of all countries in the world object.  
+* **`st_coordinates()`- ** This function fetches the x and y coordinates of the centroid obtained for each country. After this, these X and Y columns are attached to the world object using **`cbind()`** function.  
+
+
+```{r country_coordinates, message=FALSE, warning=FALSE}
+#following 2 lines fetch the coordinates of the centroid of each country.
+country_centroid <- sf::st_centroid(world)
+country_centroid <- cbind(world, sf::st_coordinates(st_centroid(world$geometry)))
+
+```
+
+* The **`geom_text()`** function takes **`country_centroids`** as the dataframe; and attaches **name** of each country as label at the position of this centroid. So in a nutshell, centroids have been extracted to get the position within each country for the labels.  
+* **`annotate()`** just adds another layer with extra labels like "Bay of Bengal".  
+* **`annotation_scale()`** adds the black and white distance scale that you see at the bottom of the map.  
+* **`annotation_north_arrow()`** adds the compass arrow. These layers can be added to make the maps more aesthetically pleasing. 🙂  
+* In the **`theme()`** function:  
+    * **panel.grid.major** adds the dashed grid lines in the background.  
+    * **panel.background** makes the background of the map, which is oceans here, of ***aliceblue*** color. 
+
+
+```{r india_map_with_labels, fig.align='center'}
+#plot of India and neighboring countries with labels.
+ggplot(data = world)+
+  geom_sf(fill="antiquewhite")+
+  geom_text(data = country_centroid,aes(x=X,y=Y,label=name),
+            color="darkblue",fontface="bold",check_overlap = FALSE,size=2.2)+
+  annotate(geom="text",x=90,y=17,label="Bay of Bengal",fontface="bold.italic",
+           color="gray22",size=3)+
+  annotation_scale(location="bl",width_hint=0.2,pad_x = unit(0.15,"in"))+
+  annotation_north_arrow(location="bl",which_north="true",
+                         pad_x = unit(0.25,"in"),pad_y=unit(0.35,"in"),
+                         style = north_arrow_fancy_orienteering,
+                         height = unit(0.45,"in"),
+                         width = unit(0.45,"in"))+
+  coord_sf(xlim = c(68.7,97.25), ylim = c(8.4,37.6), expand = TRUE)+
+  labs(x="longitude",y="latitude",
+       title = "Map of India with neighboring countries")+
+  theme_size+
+  theme(panel.grid.major = element_line(color = grey(0.5),linetype="dashed",
+                                        size=0.5),
+        panel.background = element_rect(fill = "aliceblue"))
+```
+
