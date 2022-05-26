@@ -2,8 +2,16 @@
 title: "Creating Maps using RNaturalEarth Data"
 author: "Shefali C."
 date: '2022-05-24'
-output: 
-        github_document
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    toc: yes
+    toc_float:
+      smooth_scroll: no
+    theme: lumen
+    highlight: tango
 ---
 
 This was one of the starter projects in my journey to learn/visualize and work with spatial data in R. The original work can be found [here](https://r-spatial.org/r/2018/10/25/ggplot2-sf.html). :)   
