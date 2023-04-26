@@ -1,0 +1,62 @@
+R "tmap" package functions:
+-----------------------
+
+Details
+The fundamental, and hence required element is tm_shape(), which specifies the shape object, and also specifies the projection and bounding box.
+
+The elements that serve as aesthetics layers are-
+
+Base layers:
+============
+
+1. tm_polygons	Create a polygon layer (with borders)
+2. tm_symbols	Create a layer of symbols
+3. tm_lines	Create a layer of lines
+4. tm_raster	Create a raster layer
+5. tm_text	Create a layer of text labels
+6. tm_basemap	Create a layer of basemap tiles
+7. tm_tiles	Create a layer of overlay tiles
+
+Derived layers:
+===============
+
+1. tm_fill	Create a polygon layer (without borders)
+2. tm_borders	Create polygon borders
+3. tm_bubbles	Create a layer of bubbles
+4. tm_squares	Create a layer of squares
+5. tm_dots	Create a layer of dots
+6. tm_markers	Create a layer of markers
+7. tm_iso	Create a layer of iso/contour lines
+8. tm_rgb	Create a raster layer of an image
+
+The layers can be stacked by simply adding them with the + symbol. The combination of the elements described above form one group. Multiple groups can be stacked. Each group should start with tm_shape.
+
+Attributes layers:
+==================
+
+1. tm_grid	Create grid lines
+2. tm_scale_bar	Create a scale bar
+3. tm_compass	Create a map compass
+4. tm_credits	Create a text for credits
+5. tm_logo	Create a logo
+6. tm_xlab and tm_ylab	Create axis labels
+7. tm_minimap	Create a minimap (view mode only)
+
+Layout element:
+===============
+
+1. tm_layout	Adjust the layout (main function)
+2. tm_legend	Adjust the legend
+3. tm_view	Configure the interactive view mode
+4. tm_style	Apply a predefined style
+5. tm_format	Apply a predefined format
+
+
+OTHER "tmap_*" functions:
+-------------------------
+
+1. tmap_mode- 2 options available: "plot" for static map; "view" for interactive maps
+"View" mode renders the map as a leaflet widget. 
+
+2. tmap_layout() - to set entire layout of the map- titles, text, legends...
+3. 

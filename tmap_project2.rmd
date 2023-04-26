@@ -1,0 +1,505 @@
+---
+title: "R tmap package- Introduction"
+author: "Shefali C."
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = 'center',fig.asp = 0.5)
+```
+
+This markdown file provides an introduction to the **`tmap`** package primarily used to build thematic maps in R.  
+Source- *[Cran- tmap-Get Started](https://cran.r-project.org/web/packages/tmap/vignettes/tmap-getstarted.html)*
+
+Datasets used- inbuilt datasets of tmap package- World, land, rivers and metro.  
+
+
+```{r loading_libraries, warning=FALSE, message=FALSE}
+##URL- https://cran.r-project.org/web/packages/tmap/vignettes/tmap-getstarted.html
+##AUTHOR- Shefali C.
+##DATE- April 19, 2023
+
+library(dplyr)
+library(tmap)
+library(sf)
+#for color palettes
+library(viridis)
+```
+
+**tmap_options()** works like the **options()** function of base R. It is used to globally set some themes. These themes apply to all maps in the current R session, if not over-ridden in any part.  
+
+
+```{r set_options, warning=FALSE, message=FALSE}
+#following function sets the options globally. It applies to all maps
+#in the current session.
+#tmap_options(bg.color = "skyblue", legend.text.color = "black")
+```
+
+#### Dataset Explanation-  
+
+1. **`World`-** (class is sf; data.frame). 177 countries and 16 variables. The 16th column contains geometry for the country (MULTI-POLYGON), here a shapefile defining the shape of each country's boundaries. It is a ***SpatialPolygonsDataFrame***.  
+
+2. **`rivers`-** (class is sf; data.frame) contains 343 rivers & Lake Centerlines of the world. It's 5th column contains geometry (LINE-STRING) for the given water bodies. This data is a ***SpatialLinesDataFrame***.
+
+3. **`land`-** (class is stars) It contains spatial data for global land cover, % tree cover and elevation.  Since it is a raster dataset, it is a ***SpatialPixelsDataFrame***.
+    - **cover-** This column is of factor type. It classifies the global land cover into 20 categories. This can be checked using **`levels(land$cover)`**.  
+    - **cover_cls-** This column is also of factor type. It classifies global land cover into 8 simple categories namely- Forest, Other natural vegetation, Cropland, Wetland, Bare area/Sparse vegetation, Urban Snow/ice and Water.  
+    - **trees-** Represents percent tree cover, i.e. density of trees on the ground.  
+    - **elevation**- Represents land elevation.  
+
+4. **`metro`-** contains 436 metro cities of the world, with their population from 1950 to 2030 (10 years interval); there are 13 variables with the 13th variable being a POINT object (class sf). It is a ***SpatialPointsDataFrame***.
+  
+  
+
+```{r load_dataframes, message=FALSE, warning=FALSE}
+#loading all datasets
+data("World", rivers, metro, land)
+```
+
+In the below code chunk, a new bounding box has been created.  
+This is because by default, in tmap, title of the map gets plotted inside the plotting area, thereby overlapping with the map. In order to avoid this mess, the bounding box dimensions can be extended in all 4 directions to neatly accomodate titles, captions, legends etc.  
+
+Help taken from- **[Adjusting Bounding Box](https://www.jla-data.net/eng/adjusting-bounding-box-of-a-tmap-map/)**
+
+In the following code:  
+
+1. **`st_bbox()`** of sf package fetches the default dimensions of the spatial object, here World spatial dataframe. It returns a vector of **xmin, ymin, xmax** and **ymax** values.  
+
+2. xrange and yrange contain the default width and height of the bounding box.  
+
+3. I wanted to accomodate legend to the right side of plot without any overlap. So, I added "30% of xrange" space to the right side.  
+    **Note:** in the bbox_new vector, bbox_new[3] contains **xmax** value which represents max limit on positive x axis.  
+  Similarly, I wanted to add little space below the map to accomodate the caption, hence "25% of yrange" has been added below for the same. bbox_new[2] represents **ymin** which represents negative y-axis.  
+    **Note:** "25% of yrange" has been substracted because ymin value is already negative, so it is net addition. It shifts the lower limit of y a bit more downwards.  
+
+4. Lastly, this modified **`bbox_new`** has been converted to a sf polygon because right now, it is still a vector. The **bbox** argument in **`tm_shape()`** function takes a sf object. Hence, the conversion.  
+
+
+
+```{r bounding-box, warning=FALSE, message=FALSE}
+
+#st_bbox() returns (x,y) dimensions of 4 corners of current bounding box
+bbox_new <- sf::st_bbox(World)
+
+#range of x axis values (gives length of bounding box rectangle)
+xrange <- bbox_new$xmax - bbox_new$xmin
+#range of y values (width of the rectangle)
+yrange <- bbox_new$ymax - bbox_new$ymin
+
+#adding 25% more space to the right and top of the bbox.
+#i want to place the legend to the right of the plot, so need space in RHS.
+#space will be added to top of the plot for title.
+
+#bbox_new[3] means xmax; xmax is towards RHS of plot.
+bbox_new[3] <- bbox_new[3] + (0.3*xrange)
+#bbox_new[2] means ymin; ymin is the downward y-axis on the plot
+bbox_new[2] <- bbox_new[2] - (0.25*yrange)
+
+##converting the bounding box into sf polygon
+#the st_bbox() returns a vector with dimensions. bbox argument of tm_shape()
+#requires a sf object. Hence the conversion.
+bbox_new <- bbox_new %>% 
+              sf::st_as_sfc()
+```
+
+
+### World Maps
+
+#### 1. Happy Planet Index (HPI) for all countries.
+
+The default colour palette of tmap here is "YlOrBr". I'm changing it to diverging palette "RdYlGn" for better representation. Green represents countries with higher happiness index.  
+
+One thing to note from the map below is that well-developed countries do not necessarily have a high happiness index. e.g. USA, Australia, Canada etc.
+
+```{r world_hpi, message=FALSE, warning=FALSE, fig.asp=0.5}
+
+#setting mode of map to static
+tmap_mode(mode = "plot")
+
+#world map with HPI values
+tmap::tm_shape(World, bbox = bbox_new)+
+  tm_polygons(col = "HPI", palette = "RdYlGn")+
+  #setting inner margins of the map
+   tm_layout(inner.margins = c(0, 0.02, 0.02, 0.02))+
+  #adding caption/source
+  tm_credits(text = "Source: https://www.naturalearthdata.com/",
+             position = c("LEFT","BOTTOM"))
+
+```
+
+tmap contains a lot of built-in themes:  
+- classic  
+- white  
+- gray  
+- natural  
+- cobalt  
+- col_blind  
+- albatross  
+- beaver
+
+```{r builtin_theme, warning=FALSE, message=FALSE}
+#style is a specific theme type in tmap. many options available
+tmap_style("classic")
+```
+
+```{r world_life_exp, warning=FALSE, message=FALSE}
+#world map with life expectancy
+tmap::tm_shape(World)+
+  tm_polygons(col = "life_exp")
+
+```
+
+```{r world_wellbeing, message=FALSE, warning=FALSE}
+
+#setting map style to natural
+tmap_style("natural")
+#world map with well-being index
+tmap::tm_shape(World)+
+  tm_polygons(col = "well_being")
+
+```
+
+```{r world_inequality, message=FALSE, warning=FALSE}
+
+#setting style to cobalt
+tmap_style("cobalt")
+#world map with inequality
+tmap::tm_shape(World)+
+  tm_polygons(col = "inequality")
+
+```
+
+Using **`tmap_options_reset()`** reverts all the changes back to default settings of tmap. For e.g. if background color has been set as "blue", it reverts back to default white. Any buil-in theme applied changes to the default theme of map etc.  
+
+
+```{r reset_options, warning=FALSE, message=FALSE}
+#resetting options to default layout
+tmap_options_reset()
+```
+
+
+
+```{r world_economy, warning=FALSE, message=FALSE}
+
+#setting view mode to interactive
+tmap_mode(mode = "view")
+#world map with economy type
+tmap::tm_shape(World)+
+  tm_polygons(col = "economy")+
+  #since map is interactive, tm_view() has to be used to set legend format
+  tm_view(
+    view.legend.position = c("right","bottom"),
+  )
+```
+
+Creating a map with multiple layers. Each dataframe creates one layer.  
+1. The base layer depicts global land elevation.  
+  - tm_raster()- used to display raster data. Elevation column in land dataframe is a matrix of integer values. These can be represented on map using tm_raster() function.  
+  - terrain.colors(10)- selects 10 colors to use on the map. It takes 3 arguments. first is "n" value, i.e. number of colors, second is alpha value and third is "rev" argument. "rev" takes either TRUE or FALSE indicating the order in which shades should be used, light to dark OR dark to light.  
+
+2. World dataframe is used to draw borders around countries in the map.     - tm_text()- adds a layer with text elements- ISO country codes.  
+
+3. metro dataframe is used to add red dots for all metro cities.  
+  - size of the dot is determined by population in cities in year 2020 (size = pop2020).  
+  - scale- this argument controls size of legend box. It can be used to increase/decrease size of legend box.  
+
+
+```{r world_layered_map1}
+#tmap mode set to static
+tmap_mode(mode = "plot")
+
+#Layer 1 creates thematic map with land elevation
+#Layer 2 adds white borders around country polygon with country abbreviation
+#Layer 3 adds points for metro cities in each country
+#tm_legend removes the legend from bottom left corner of map
+
+#tmap_style("albatross")
+tm_shape(land)+
+  tm_raster("elevation", palette = terrain.colors(10))+
+tm_shape(World)+
+  tm_borders(col = "white", lwd = 1)+
+  tm_text(text = "iso_a3", size = "area")+
+tm_shape(metro)+
+  tm_symbols(col = "red", size = "pop2020", scale = 0.5)+
+tm_legend(show = FALSE)
+
+```
+
+We get a warning message in above code regarding "CRS" value.  
+***old-style crs object detected; please recreate object with a recent sf::st_crs()***   
+
+Reason-  
+Among all 4 dataframes, in **`metro`** dataframe, geometry column is of ***proj4string*** type. This crs format has been deprecated. **WKT** is the standard format used now.  
+
+
+```{r crs_warning, message=FALSE}
+##The Warning message: update crs can be avoided by explicitly stating the 
+#crs value. The df geometry column contains CRS projection in
+#old format- proj4string, This format has been deprecated. 
+#Following code sets the CRS to WKT format.
+
+#check the format of CRS in spatial object
+str(attr(metro$geometry, "crs"))
+
+```
+
+This warning can be avoided by setting the reference code explicitly as shown below. In the warning, we can see that the coordinate system used is WGS84, indicated by "EPGS". So, we set the EPSG code "4326" for this projection.  
+
+
+```{r changing_crs_format, message=FALSE}
+#change the format of projection.
+
+#making a copy of the tmap dataframe
+metro <- metro
+#from the attribute, we can see the CRS is ESPG, code is 4326. 
+#explicitly setting crs to 4326
+sf::st_crs(metro) <- 4326
+
+```
+
+Checking the format of geometry again. It is WKT now.   
+
+```{r}
+#now checking the CRS format again
+str(attr(metro$geometry, "crs"))
+```
+
+No warning message appears now.
+
+```{r world_layered_map2}
+#Re-creating the above layered map; this time no warning appears
+tm_shape(land)+
+  tm_raster("elevation", palette = terrain.colors(10))+
+tm_shape(World)+
+  tm_borders(col = "white", lwd = 1)+
+  tm_text(text = "iso_a3", size = "area")+
+tm_shape(metro)+
+  tm_symbols(col = "red", size = "pop2020", scale = 0.5)+
+tm_legend(show = FALSE)
+
+```
+
+### CREATING FACETS IN tmap package {.tabset}
+
+There are 3 ways of creating facets in tmap package.  
+1. **`tm_polygon()`-** Assign multiple variables in **col** argument of this function.  
+2. **`tm_facets()`-** Assign a variable to **by** argument of this function. Facets get created based on this variable. E.g. continent.  
+3. **`tm_arrange`-** Create and store individual plots in variables. Then patch all these plots together using this function.  
+
+#### Method 1- Using tm_polygon()  
+
+
+```{r facets_method1, warning=FALSE, message=FALSE}
+
+#Method 1- assign multiple variables in tm_polygons() col argument.
+
+#Interactive mode- on
+tmap_mode(mode = "view")
+tm_shape(World)+
+  tm_polygons(col = c("HPI","economy"))+
+  tm_facets(sync = TRUE, ncol = 2)+
+  tm_view(
+    view.legend.position = c("right","bottom")
+  )
+```
+
+
+
+#### Method 2- Using tm_facets()  
+
+```{r facets_method2, warning=FALSE, message=FALSE}
+
+#Method 2-assign a variable in df to "by" argument of tm_facets(). 
+tmap_mode(mode = "plot")
+tm_shape(World)+
+  tm_polygons(col = "economy", palette = "RdYlBu")+
+  tm_facets(by = "continent")
+
+```
+
+#### Method 3- Using tm_arrange() {-}
+
+For this method, Netherlands dataset is being used.  
+
+
+```{r facets_method3_data, warning=FALSE, message=FALSE}
+
+#Method 3- Using tmap_arrange() function
+
+#using Netherlands municipality dataset for this one
+data("NLD_muni")
+
+##CRS format of NLD_muni is deprecated version proj4string. Explicitly changing
+#it to wkt format, to avoid warning.
+
+nld_muni <- NLD_muni
+
+```
+
+Like earlier, we get a similar warning message for crs when the map is created with this dataframe. The geomtry column is of proj4string type. 
+In "help", it is mentioned that projection used for Netherlands dataframes is ***Rijksdriehoekstelsel***.  
+The EPSG reference code for this projection is 28992. Changing the format of geomtry column to WKT, to avoid the warning message.  
+
+
+```{r nld_crs_change}
+#In "help", it is mentioned that projection used for Netherlands dataframes is 
+#Rijksdriehoekstelsel.
+#EPSG CRS code for Rijksdriehoekstelsel projection is 28992.
+sf::st_crs(nld_muni) <- 28992 
+```
+
+```{r facets_method3}
+#creating facets using tmap_arrange()
+tm1 <- tm_shape(nld_muni)+
+        tm_polygons(col = "population", convert2density = T)
+
+tm2 <- tm_shape(nld_muni)+
+        tm_bubbles(size = "population", col = "midnightblue")
+
+tmap_arrange(tm1, tm2)
+
+```
+### {.unnumbered .unlisted}   
+
+
+### The tm_raster() function  
+
+
+#### 1. Land dataset- "cover_cls" variable. 
+
+This variable classifies global land cover into 8 categories.  
+- Forest  
+- Other natural vegetation  
+- Cropland  
+- Wetland  
+- Bare area/Sparse vegetation  
+- Urban Snow/ice  
+- Water.
+
+A custom palette of 8 colors has been created to represent these 8 categories in the map.
+
+```{r custome_palette_8cols}
+#custom palette
+pal8 <- c("#33A02C", "#B2DF8A", "#FDBF6F", "#1F78B4", "#999999", 
+          "#E31A1C", "#E6E6E6", "#A6CEE3")
+```
+
+
+```{r land_cover_cls, message=FALSE, warning=FALSE}
+#world map with land cover and metro cities
+tm_shape(land, ylim = c(-88,88)) +
+  tm_raster("cover_cls", palette = pal8, title = "Global Land Cover")+
+tm_shape(metro) +
+  tm_dots(col = "#E31A1C")+
+tm_shape(World)+
+  tm_borders(col = "black")+
+  #scale argument reduces the size of legend box
+tm_layout(scale = .5,
+          legend.position = c("left","bottom"),
+          legend.bg.color = "white",
+          legend.bg.alpha = .2,
+          legend.frame = "gray50"
+          )
+
+```
+
+#### 2. Land dataset- "cover" variable
+
+The **cover** variable classifies land cover into 20 fine categories. By fine, I mean all forest areas do not come under one category "Forest" like above. Instead, each forest type has its own category like-   
+- Broadleaf Evergreen Forest  
+- Broadleaf Deciduous Forest  
+- Needleleaf Evergreen Forest  
+- Needleleaf Deciduous Forest  
+- Mixed Forest  
+- Tree Open
+
+A custome palette of 20 colors has been created to represent each of the 20 categories.  
+
+
+```{r custome_palette_col20, warning=FALSE, message=FALSE}
+#below palette contains 20 colors to represent 20 cover-types in land df
+#another custom palette
+pal20 <- c("#003200", "#3C9600", "#006E00", "#556E19", "#00C800", "#8CBE8C",
+           "#467864", "#B4E664", "#9BC832", "#EBFF64", "#F06432", "#9132E6",
+           "#E664E6", "#9B82E6", "#B4FEF0", "#646464", "#C8C8C8", "#FF0000",
+           "#FFFFFF", "#5ADCDC")
+```
+
+
+```{r land_cover, message=FALSE, warning=FALSE}
+
+#land cover represents a finer layer of cover type, 20 different categories
+tm_shape(land)+
+  tm_raster("cover", palette = pal20, title = "Global Land Cover")+
+  tm_layout(scale = .4,
+            legend.position = c("left", "bottom"))
+
+```
+
+
+#### Creating tiled basemap  
+
+```{r tiled_basemap, warning=FALSE, message=FALSE}
+
+#Creating tiled basemaps
+tmap_mode(mode = "view")
+
+tm_basemap(server = "Stamen.Watercolor")+
+  tm_shape(metro)+
+  #scale arguments makes sure bubble size doesn't get too large.
+  tm_bubbles(col = "red", size = "pop1950", scale = 0.5)+
+  #adds a layer with names of all places.
+  tm_tiles("Stamen.TonerLabels")
+
+```
+
+**`tmap_options_diff()`** gives a list of all changes made to the map settings, from default values.  
+
+
+```{r}
+#to see what all options have been changed from default values.
+tmap_options_diff()
+```
+
+#### Saving maps
+
+```{r saving_map, message=FALSE, warning=FALSE}
+
+#creating map for land elevation
+land_cover <- tm_shape(land)+
+                tm_raster("elevation", 
+                          palette = viridis(n = 15, option = "mako", direction = -1))+
+                tm_layout(scale = .5,
+                          legend.position = c("left", "bottom"))
+
+#Exporting and saving maps- static and interactive versions
+tmap_save(tm = land_cover, filename = "images/world_land_cover.png")
+
+#saving as stand-alone html file
+tmap_save(tm = land_cover, filename = "images/world_land_cover.html")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
