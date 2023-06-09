@@ -1,0 +1,264 @@
+---
+title: "Different ways of using color palettes in tmap"
+author: "Shefali C."
+date: "2023-05-01"
+output: html_document
+knit: (function(input_file, encoding){
+      out_dir <- 'docs';
+      rmarkdown::render(input_file,
+        encoding=encoding,
+        output_file=file.path(dirname(input_file), out_dir, 'tmap_color_palettes.html'))})
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(tmap)
+library(dplyr)
+library(ggplot2)
+library(sf)
+data("World", "NLD_muni", "NLD_prov", metro, rivers, land)
+```
+
+CRS value in the built-in *`metro`* dataframe is of *proj4string* type. This format has long been deprecated. In the following code, the CRS is being converted to *WKT* format, which is the most accepted format.  
+This is not a mandatory step but I've done this to avoid warning message thrown during map creation.  
+
+
+```{r}
+#Convert old CRS 'proj4string' to new EPSG in metro dataset
+
+#check for current crs
+str(attr(metro$geometry, "crs"))
+
+#convert to EPSG 'wkt' format
+sf::st_crs(metro) <- 4326
+```
+
+
+*grDevices* is an inbuilt package in R. Custome palettes can be created using *`hcl.colors()`* function. Code chunk below displays all color palettes names that can be used in this `hcl.colors()` function.  
+
+`hcl.colors()` can be used to create palette using palettes from different packages like ***viridis, RColorBrewer*** etc.
+
+```{r}
+
+#names of all palettes
+hcl.pals()
+#displaying available palettes for hcl.colors() function
+colorspace::hcl_palettes(plot = T)
+```
+
+### 3 methods of assigning palettes to any map
+
+#### Method 1: Assign vector of color names
+
+If number of colors provided is low, tmap automatically creates range in the colors depending on values of the variable (here, life expectancy).
+
+```{r}
+#method 1- use a vector of color names
+tm_shape(World)+
+  tm_polygons(col = "life_exp", palette = c("yellow", "blue"))
+
+```
+
+#### Method 2: Using a built-in palette name
+
+Adding negative sign infront of palette names reverses the order of colors.
+
+```{r}
+#method 2- built-in palette name
+tm_shape(World)+
+  tm_polygons(col = "life_exp", palette = "viridis")
+
+#reversing the order of colors
+tm_shape(World)+
+  tm_polygons(col = "life_exp", palette = "-viridis")
+```
+
+#### Method 3: Calling palette function to select n number of colors in a palette
+
+1. `hcl.colors()` function selects 5 colors from **inferno** palette.  
+
+2. `rev()` function has been used to reverse the order of colors.  
+
+
+```{r}
+#method 3- output of a palette function
+tm_shape(World)+
+  tm_polygons(col = "life_exp", palette = rev(hcl.colors(n = 5, palette = "inferno")))
+
+tm_shape(World)+
+  tm_polygons(col = "life_exp", palette = rev(hcl.colors(7, "ag_GrnYl")))
+
+```
+
+
+### When should diverging palettes be used?
+
+Diverging palettes can be used when values in a variable differ in both directions. Let's say, a variable x contains negative and positive numbers both. In this case, a diverging palette can be used to color the map. By default, midpoint of the x variable is taken as 0. So One kind of sequence coloring is used from -ve values to 0 and other kind of sequence color is used from 0 to positive values.
+
+e.g. Yellow is used from Dark to light shade as values from negative towards 0. And Red is used from light to darker shade on moving from 0 to higher positive end.
+
+We can set our own midpoint values too. 
+
+Try being authentic. For e.g. if variable being used to color map is life expectancy. Find the median life expectancy of the dataset. Then use it.
+
+
+```{r}
+#diverging palette
+tm_shape(World)+
+  tm_polygons(col = "life_exp", palette = "BrBG", midpoint = 65)
+
+#using median life expectancy from dataset as midpoint of color palette
+median_life <- median(World$life_exp)
+tm_shape(World)+
+  tm_polygons(col = "life_exp", palette = "BrBG", midpoint = median_life)
+```
+
+### Using colors for categorical variables  
+
+Since this dataset has 8 continents, so 8 colors.
+
+```{r}
+#categorical palette
+tm_shape(World)+
+  tm_polygons(col = "continent", 
+              palette = c(
+                "Asia" = "#11467b",
+                "Africa" = "#ffd14d",
+                "Europe" = "#86909a",
+                "South America" = "#14909a",
+                "Antarctica" = "white",
+                "Seven seas (open ocean)" = "#7fbee9",
+                "Oceania" = "#df5454",
+                "North America" = "#7b1072"
+              ))
+
+```
+
+### Difference between Categorical maps and Discrete maps
+
+In the World dataset, continent column is categorical. It contains characters and is a factor with 8 levels. It is a qualitative variable. If map is created using `col="continent"`, then each level gets one distinct color. Such map is categorical map.   
+
+In the same dataset, population column is numeric and has wide range of values. When such variable is provided to tmap `col="pop_est`, it creates some number of class intervals. Each interval gets a color. Now, the intervals can be colored using sequential colors or categorical. 
+This map is discrete map.(it's not categorical. The variable provided to `col` argument is numeric and quantitative.) 
+
+### Discrete maps
+
+`style` argument of `tm_polygons()` is used to create discrete maps. When such variable is given to `col` parameter, tmap understands the variable type and uses `pretty` style by default. When `style="pretty"`, the breaks created are whole numbers and are evenly spaced.  
+
+There are 14 options available for style argument. Along with it, desired number of classes can also be specified using the `n` argument.
+
+
+
+### Creating breaks in maps.
+
+#### 1. Manually specifying breaks  
+
+
+```{r}
+#trying out breaks.
+tm_shape(World)+
+  tm_polygons(col = "gdp_cap_est")
+
+#adding breaks
+tm_shape(World)+
+  tm_polygons(col = "gdp_cap_est",
+              breaks = c(0, 7000, 25000, 200000),
+              labels = c("low", "medium", "high"))
+```
+
+#### 2. Automatically specifying breaks.  
+
+By specifying one of "equal", "sd", and "quantile" styles in `style` argument.  
+1. **"equal"** can be used when the variable doesn't have any outliers; here, the entire range of values are divided into n number of classes/intervals.  
+2. **"quantile"** creates classes with same number of elements in all intervals but the intervals can be of varying widths.  
+3. **"sd"** is used to display how much values differ from mean. In this case, width of each interval remains same, i.e. 1 standard deviation. For e.g. creating a map to show which all countries fall withing 1 standard deviation from mean, which fall within 2 standard deviations etc.  
+
+```{r}
+#class intervals of "life_exp" created with equal width
+tm_shape(World)+
+  tm_polygons(col = "life_exp", style = "equal")
+
+#class intervals with same number of values in each class. 25%
+tm_shape(World)+
+  tm_polygons(col = "life_exp", style = "quantile")
+
+#class interval has size = stardard deviation of life expectancy
+tm_shape(World)+
+  tm_polygons(col = "life_exp", style = "sd")
+
+# (life_sd <- sd(World$life_exp, na.rm = T))
+# (life_mean <- mean(World$life_exp, na.rm = T))
+```
+
+
+#### 3. Using classification techniques to specify breaks
+
+1. "Jenks" is an optimization method used in creating classes. It is set by using `style="jenks"`.  
+2. `style="dpih"` uses kernel density estimation technique to select width of intervals.  
+3. Creating class intervals using clustering techniques- `style="kmeans"` OR `style=bclust` (Bagged clustering) OR `style=hclust` (Hierarchical clustering).  
+4. `style=headtails` used for right skewed data.  
+5. `style=log10pretty` - log 10 transformation applied to class intervals.  
+
+
+```{r}
+tm_shape(World)+
+  tm_polygons(col = "gdp_cap_est",
+              style = "jenks")
+```
+
+### Maps using continuous variable. 
+
+3 continuous methods present in tmap. They can be applied to style argument- `cont`, `order` and `log10`.
+
+`order` and `log10` are used when data is skewed.
+
+```{r}
+tm_shape(World)+
+  tm_polygons(col = "gdp_cap_est", style = "pretty", palette = "-viridis")
+
+tm_shape(World)+
+  tm_polygons(col = "gdp_cap_est", style = "cont", palette = "-viridis")
+
+tm_shape(World)+
+  tm_polygons(col = "gdp_cap_est", style = "order")
+```
+
+Another way of coloring the polygons is by specifying `col="MAP_COLORS"`. In this case, the polygons get colored in such a way that adjacent polygons do not get same colors.  
+
+```{r}
+tm_shape(World)+
+  tm_polygons(col = "MAP_COLORS")
+
+#to use minimum number of colors to display all countries.
+tm_shape(World)+
+  tm_polygons(col = "MAP_COLORS", minimize = T) #see in map, only 4 colors color entire map as compared to previous one.
+```
+
+### Creating shapes
+
+Here, I have downloaded a metro symbol to display all metro cities with it. By default, it is displayed using dots. 
+First, this png file is read and converted to tmap object using `tmap_icon()` function. Then, this object is applied to `shape` argument of tm_symbols(). 
+
+```{r}
+
+#reading metro symbol png
+metro_icon <- tmap_icons(paste0(getwd(), "/images/metro_symbol.png"))
+
+tm_shape(World)+
+  tm_fill(col = "cornsilk")+
+tm_shape(metro)+
+  tm_symbols(shape = metro_icon, size = 0.01)
+```
+
+
+
+
+
+
+
+
+
+
