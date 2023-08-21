@@ -374,6 +374,73 @@ ggplot(coast) +
   theme(panel.background = element_rect(fill = "#C7E7FB", color = "black"))
 ```
 
+### Using gisco_get_grid()  
+
+Application of  **`gisco_get_grid()`** function deserves its own notebook. You can go through [this](add link to your notebook) to see its usage.  
+A short note on the parameter value it accepts is as follows:  
+
+
+- **resolution** accepts values- "1", "2", "5", "10", "20", "50", "100". `resolution = "100"` results in file-size 428Kb & `resolution = "1"` results in file-size of about 1.7Gb.  
+
+- **spatialtype** can be either "REGION" or "POINT".  
+
+- The projection of the files returned is **EPSG: 3035**.  
+
+### Location of heathcare services in Europe
+
+- Function used: **`gisco_get_healthcare()`**.  
+- Projection: **EPSG-4326**  
+- Value returned- POINT object.  
+- The dataframe contains 26 variables with info about hospital names, location, lat-long values, kind of ownership (private/public), email, phone number, city, street etc. 
+<br>
+Further reading: [rdrr.io](https://rdrr.io/cran/giscoR/man/gisco_get_healthcare.html)
+
+```{r belgium-health-data}
+
+belgium_healthcare <- gisco_get_healthcare(country = "Belgium")
+#replace blank in kind of ownership column to "unknown"
+belgium_healthcare[belgium_healthcare$public_private == "",]$public_private <- "unknown"
+
+#get NUTS level 2 region names of belgium
+belgium_nuts2 <- gisco_get_nuts(country = "Belgium", nuts_level = 2)
+```
+
+```{r belgium-health-map}
+ggplot(data = belgium_nuts2)+
+  geom_sf(fill = "white", color = "black", linewidth = 0.5)+
+  geom_sf(data = belgium_healthcare, aes(color = public_private),
+          alpha = 0.6, size = 2)+
+  theme_bw()+
+  labs(title= "Healthcare in Belgium",
+       caption = paste(gisco_attributions()),
+       subtitle = "NUTS 2",
+       fill = "type")+
+  scale_color_manual(name = "Type of ownership", values = hcl.colors(n = 3, palette = "Berlin"))+
+  theme_minimal()+
+  theme(
+    plot.title = element_text(size = 11),
+    plot.subtitle = element_text(size = 9),
+    plot.caption = element_text(size = 8, hjust = 0),
+    axis.text = element_text(size = 8),
+    legend.title = element_text(size = 8, face = "bold"),
+    legend.text = element_text(size = 7)
+  )
+
+```
+
+### Local Urban Areas of Europe
+
+- This data can be obtained using functions- **`gisco_get_lau()`** & **`gisco_get_communes()`**.  
+- 
+
+```{r ireland-urban-areas-data}
+
+#get labels/names for the urban areas of Ireland
+#ireland_uareas <- gisco_get_lau(country = "Ireland")
+
+
+```
+
 
 
 
