@@ -213,3 +213,95 @@ ggplot(coast) +
   theme(panel.background = element_rect(fill = "#C7E7FB", color = "black"))
 
 ##------------
+
+##using gisco_get_grid()
+
+grid <- gisco_get_grid(resolution = "20")
+
+
+#data for 2021
+grid_2021 <- grid %>% 
+  select(DIST_BORD, GRD_ID, X_LLC, Y_LLC, CNTR_ID,
+         LAND_PC, DIST_COAST, contains(match = "2021"), geometry)
+
+#if downloaded correctly, proceed
+if(!is.null(grid)){
+  grid_2021$popden <- grid_2021$TOT_P_2021/20
+}
+
+breaks <- c(
+  0, 0.1, 100, 500, 1000, 2500, 5000, 10000,
+  25000, max(grid_2021$popden) + 1
+)
+
+#Cut groups
+grid_2021$popden_cut <- cut(grid_2021$popden, 
+                            breaks = breaks, include.lowest = T)
+
+#add labels for the interval
+cut_labels <- prettyNum(breaks, big.mark = " ")[-1]
+cut_labels[1] <- "0"
+cut_labels[9] <- "> 25 000"
+
+#set palette
+pal <- c("black", hcl.colors(length(breaks) - 2,
+                             palette = "Spectral",
+                             alpha = 0.9
+))
+
+eu_map <- ggplot(data = grid_2021)+
+            geom_sf(aes(fill = popden_cut), color = NA, linewidth = 0)
+  
+  
+  
+eu_map+
+  coord_sf(xlim = c(2500000, 7000000),
+           ylim = c(1500000, 5200000)
+           )+
+  scale_fill_manual(values = pal, na.value = "black",
+                    name = "people per sq. km",
+                    labels = cut_labels,
+                    guide = guide_legend(
+                      direction = "horizontal",
+                      keyheight = 0.5,
+                      keywidth = 2,
+                      title.position = "top",
+                      title.hjust = 0.5,
+                      label.hjust = 0.5,
+                      nrow = 1,
+                      byrow = T,
+                      reverse = F,
+                      label.position = "bottom"
+                    ))+
+  theme_void()+
+  labs(
+    title = "Population density in Europe",
+    subtitle = "Grid: 20 km.",
+    caption = gisco_attributions()
+  )+
+  theme(
+    plot.background = element_rect(fill = "grey2"),
+    plot.title = element_text(
+      size = 18, color = "white",
+      hjust = 0.5,
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      color = "white",
+      hjust = 0.5,
+      face = "bold"
+    ),
+    plot.caption = element_text(
+      size = 9, color = "grey60",
+      hjust = 0.5, vjust = 0,
+      margin = margin(t = 5, b = 10)
+    ),
+    legend.text = element_text(
+      size = 8,
+      color = "white"
+    ),
+    legend.title = element_text(
+      color = "white"
+    ),
+    legend.position = "bottom"
+  )
