@@ -215,8 +215,12 @@ ggplot(coast) +
 ##------------
 
 ##using gisco_get_grid()
+#URL- https://rdrr.io/cran/giscoR/man/gisco_get_grid.html
 
 grid <- gisco_get_grid(resolution = "20")
+
+#For details about what all columns represent, refer PDF link below
+#https://gisco-services.ec.europa.eu/grid/GISCO_grid_metadata.pdf
 
 
 #data for 2021
