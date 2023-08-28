@@ -1,6 +1,6 @@
 #Map of Europes built with giscoR package
 #Author- Shefali C.
-#Last Updated- Aug 26, 2023
+#Last Updated- Aug 28, 2023
 
 #For eurostat package- take help from:
 #https://ropengov.github.io/eurostat/articles/eurostat_tutorial.html#:~:text=A%20user%20does%20not%20usually,Modal%20split%20of%20passenger%20transport'.
@@ -9,12 +9,14 @@ library(tidyverse)
 library(sf)
 library(giscoR)
 library(eurostat)
+library(jsonlite)
 
 #set the cache directory.
 
 #path to data directory
 data_dir_path <- paste0(getwd(), "/data/gisco_datasets")
-gisco_set_cache_dir(data_dir_path)
+#set the directory for caching Eurostat datasets
+gisco_set_cache_dir(data_dir_path, install = T)
 
 
 
@@ -316,6 +318,8 @@ ggplot(nuts2.sf) +
     legend.position = c(0.5, 0.02)
   )
 
+#---------------------------------------------------------------------------
+
 ##MAP 3- Population density of 2018
 #URL- https://ropengov.github.io/giscoR/
 
@@ -324,8 +328,14 @@ nuts3 <- gisco_get_nuts(
             year = "2016",
             epsg = "3035",
             resolution = "3",
-            nuts_level = "3"
+            nuts_level = "3",
+            cache = T
 )
+
+#all_files <- list.files(data_dir_path, pattern = "\\.geojson$")
+
+
+#nuts3 <- st_read(paste0(data_dir_path,"/"))
 
 #get country lines
 country_lines1 <- nuts3 %>% 
@@ -340,8 +350,105 @@ country_lines2 <- nuts3 %>%
 
 #get population density estimate for 2018 from eurostat package
 popdens <- get_eurostat("demo_r_d3dens") %>%  filter(time == "2018-01-01")
-ukraine_pop <- get_eurostat("cens_21ua_ar3")
 
-ukraine_refugee <- search_eurostat(pattern = "population", type = "dataset")
+#---------------UKRAINE MAP DATA ROUGH WORK---------
 
-ukr <- ukraine_refugee[grep(pattern = "ukraine", ukraine_refugee$title, ignore.case = T),]
+#Ukrainian population 2021 by NUTS 3 regions.
+ukrainian_pop <- get_eurostat("cens_21ua_ar3")
+
+#ukraine_refugee <- search_eurostat(pattern = "population", type = "dataset")
+
+#ukr <- ukraine_refugee[grep(pattern = "ukraine", ukraine_refugee$title, ignore.case = T),]
+
+#filter rows with "TOTAL" in age column
+pop_count_gender <- ukraine_pop[ukraine_pop$age == "TOTAL",]
+length(unique(age_total$geo))
+
+#group by unit and NUTS-3 level.
+pop_count_total <- pop_count_gender %>% 
+                    group_by(geo) %>% 
+                    summarize(total_pop = sum(values))
+
+
+#----------------------------------------------------------
+# Merge data
+nuts3.sf <- nuts3 %>%
+  left_join(popdens, by = c("NUTS_ID" = "geo"))
+
+
+# Breaks and labels
+
+br <- c(0, 25, 50, 100, 200, 500, 1000, 2500, 5000, 10000, 30000)
+
+nuts3.sf <- nuts3.sf %>%
+  mutate(values_cut = cut(values, br, dig.lab = 5))
+
+labs_plot <- prettyNum(br[-1], big.mark = ",")
+
+# Palette
+pal <- hcl.colors(length(br) - 1, "Lajolla")
+
+
+# Plot
+
+ggplot(nuts3.sf) +
+  geom_sf(aes(fill = values_cut), linewidth = 0, color = NA, alpha = 0.9) +
+  geom_sf(data = country_lines2, col = "black", linewidth = 0.1) +
+  # Center in Europe: EPSG 3035
+  coord_sf(
+    xlim = c(2377294, 7453440),
+    ylim = c(1313597, 5628510)
+  ) +
+  labs(
+    title = "Population density in 2018",
+    subtitle = "NUTS-3 level",
+    caption = paste0(
+      "Source: Eurostat, ", gisco_attributions(),
+      "\nBased on Milos Popovic: https://milospopovic.net/how-to-make-choropleth-map-in-r/"
+    )
+  ) +
+  scale_fill_manual(
+    name = "people per sq. kilometer",
+    values = pal,
+    labels = labs_plot,
+    drop = FALSE,
+    guide = guide_legend(
+      direction = "horizontal",
+      keyheight = 0.5,
+      keywidth = 2.5,
+      title.position = "top",
+      title.hjust = 0.5,
+      label.hjust = .5,
+      nrow = 1,
+      byrow = TRUE,
+      reverse = FALSE,
+      label.position = "bottom"
+    )
+  ) +
+  theme_void() +
+  # Theme
+  theme(
+    plot.title = element_text(
+      size = 20, color = pal[length(pal) - 1],
+      hjust = 0.5, vjust = -6
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      color = pal[length(pal) - 1],
+      hjust = 0.5, vjust = -10, face = "bold"
+    ),
+    plot.caption = element_text(
+      size = 9, color = "grey60",
+      hjust = 0.5, vjust = 0,
+      margin = margin(t = 5, b = 10)
+    ),
+    legend.text = element_text(
+      size = 10,
+      color = "grey20"
+    ),
+    legend.title = element_text(
+      size = 11,
+      color = "grey20"
+    ),
+    legend.position = "bottom"
+  )
