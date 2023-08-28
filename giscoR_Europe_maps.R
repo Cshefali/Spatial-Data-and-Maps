@@ -400,7 +400,7 @@ ggplot(nuts3.sf) +
     ylim = c(1313597, 5628510)
   ) +
   labs(
-    title = "Population density in 2018",
+    title = "Ukrainian Population in EU in 2021",
     subtitle = "NUTS-3 level",
     caption = paste0(
       "Source: Eurostat, ", gisco_attributions(),
@@ -412,6 +412,126 @@ ggplot(nuts3.sf) +
     values = pal,
     labels = labs_plot,
     drop = FALSE,
+    guide = guide_legend(
+      direction = "horizontal",
+      keyheight = 0.5,
+      keywidth = 2.5,
+      title.position = "top",
+      title.hjust = 0.5,
+      label.hjust = .5,
+      nrow = 1,
+      byrow = TRUE,
+      reverse = FALSE,
+      label.position = "bottom"
+    )
+  ) +
+  theme_void() +
+  # Theme
+  theme(
+    plot.title = element_text(
+      size = 20, color = pal[length(pal) - 1],
+      hjust = 0.5, vjust = -6
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      color = pal[length(pal) - 1],
+      hjust = 0.5, vjust = -10, face = "bold"
+    ),
+    plot.caption = element_text(
+      size = 9, color = "grey60",
+      hjust = 0.5, vjust = 0,
+      margin = margin(t = 5, b = 10)
+    ),
+    legend.text = element_text(
+      size = 10,
+      color = "grey20"
+    ),
+    legend.title = element_text(
+      size = 11,
+      color = "grey20"
+    ),
+    legend.position = "bottom"
+  )
+
+##------------UKRAINE MAP---------------------
+
+nuts3_2021 <- gisco_get_nuts(
+  year = "2021",
+  epsg = "3035",
+  resolution = "3",
+  nuts_level = "3",
+  cache = T
+)
+
+#all_files <- list.files(data_dir_path, pattern = "\\.geojson$")
+
+
+#nuts3 <- st_read(paste0(data_dir_path,"/"))
+
+country_lines <- nuts3 %>% 
+  group_by(CNTR_CODE) %>% 
+  summarise(n = n()) %>% 
+  st_cast("MULTILINESTRING")
+
+#Ukrainian population 2021 by NUTS 3 regions.
+ukrainian_pop <- get_eurostat("cens_21ua_ar3")
+
+#filter rows with "TOTAL" in age column
+pop_count_gender <- ukraine_pop[ukraine_pop$age == "TOTAL",]
+length(unique(age_total$geo))
+
+#group by unit and NUTS-3 level.
+pop_count_total <- pop_count_gender %>% 
+  group_by(geo) %>% 
+  summarize(total_pop = sum(values))
+
+# Merge data
+
+ukraine_sf <- nuts3_2021 %>% 
+                left_join(pop_count_total, by = c("NUTS_ID" = "geo"))
+
+
+# Breaks and labels
+
+#br <- c(0, 25, 50, 100, 200, 500, 1000, 2500, 5000, 10000, 30000)
+breaks <- c(0,150,350,750,1500,2500,4000,8000,18000,35000,60000)
+
+ukraine_sf_cuts <- ukraine_sf %>%
+  mutate(values_cut = cut(total_pop, breaks, dig.lab = 5))
+
+#labels for legend keys
+labs_plot <- prettyNum(breaks[-1], big.mark = ",")
+labs_plot[1] <- "< 150"
+labs_plot[10] <- "> 60,000"
+
+# Palette
+pal <- hcl.colors(length(breaks) - 1, "Lajolla")
+
+
+# Plot
+
+ggplot(ukraine_sf_cuts) +
+  geom_sf(aes(fill = values_cut), linewidth = 0, color = NA, alpha = 0.9) +
+  geom_sf(data = country_lines, col = "black", linewidth = 0.1) +
+  # Center in Europe: EPSG 3035
+  coord_sf(
+    xlim = c(2377294, 7453440),
+    ylim = c(1313597, 5628510)
+  ) +
+  labs(
+    title = "Ukrainian Population in EU in 2021",
+    subtitle = "NUTS-3 level",
+    caption = paste0(
+      "Source: Eurostat, ", gisco_attributions(),
+      "\nBased on Milos Popovic: https://milospopovic.net/how-to-make-choropleth-map-in-r/"
+    )
+  ) +
+  scale_fill_manual(
+    name = "people per sq. kilometer",
+    values = pal,
+    labels = labs_plot,
+    drop = FALSE,
+    na.value = "white",
     guide = guide_legend(
       direction = "horizontal",
       keyheight = 0.5,
