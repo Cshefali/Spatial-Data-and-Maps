@@ -390,8 +390,10 @@ nuts3.sf <- nuts3.sf %>%
 labs_plot <- prettyNum(br[-1], big.mark = ",")
 
 # Palette
-pal <- hcl.colors(length(br) - 1, "Lajolla")
+palette1 <- hcl.colors(length(br) - 1, "Lajolla")
 
+#to see palette1 colors
+scales::show_col(colours = palette1)
 
 # Plot
 
@@ -413,7 +415,7 @@ ggplot(nuts3.sf) +
   ) +
   scale_fill_manual(
     name = "people per sq. kilometer",
-    values = pal,
+    values = palette1,
     labels = labs_plot,
     drop = FALSE,
     guide = guide_legend(
@@ -481,8 +483,8 @@ country_lines <- nuts3 %>%
 ukrainian_pop <- get_eurostat("cens_21ua_ar3")
 
 #filter rows with "TOTAL" in age column
-pop_count_gender <- ukraine_pop[ukraine_pop$age == "TOTAL",]
-length(unique(age_total$geo))
+pop_count_gender <- ukrainian_pop[ukrainian_pop$age == "TOTAL",]
+#length(unique(age_total$geo))
 
 #group by unit and NUTS-3 level.
 pop_count_total <- pop_count_gender %>% 
@@ -498,7 +500,8 @@ ukraine_sf <- nuts3_2021 %>%
 # Breaks and labels
 
 #br <- c(0, 25, 50, 100, 200, 500, 1000, 2500, 5000, 10000, 30000)
-breaks <- c(0,150,350,750,1500,2500,4000,8000,18000,35000,60000)
+#breaks <- c(0,150,350,750,1500,2500,4000,8000,18000,35000,60000)
+breaks <- c(0,150,650,1500,4000,8000,18000,35000,60000)
 
 ukraine_sf_cuts <- ukraine_sf %>%
   mutate(values_cut = cut(total_pop, breaks, dig.lab = 5))
@@ -509,8 +512,10 @@ labs_plot[1] <- "< 150"
 labs_plot[10] <- "> 60,000"
 
 # Palette
-pal <- hcl.colors(length(breaks) - 1, "Lajolla")
+palette2 <- hcl.colors(length(breaks) - 1, "Lajolla")
 
+#to see the colors in the palette2
+show_col(colours = palette2)
 
 # Plot
 
@@ -532,10 +537,93 @@ ggplot(ukraine_sf_cuts) +
   ) +
   scale_fill_manual(
     name = "people per sq. kilometer",
-    values = pal,
+    values = palette2,
     labels = labs_plot,
     drop = FALSE,
     na.value = "white",
+    guide = guide_legend(
+      direction = "horizontal",
+      keyheight = 0.5,
+      keywidth = 2.5,
+      title.position = "top",
+      title.hjust = 0.5,
+      label.hjust = .5,
+      nrow = 1,
+      byrow = TRUE,
+      reverse = FALSE,
+      label.position = "bottom"
+    )
+  ) +
+  theme_void() +
+  # Theme
+  theme(
+    plot.title = element_text(
+      size = 20, color = pal[length(pal) - 1],
+      hjust = 0.5, vjust = -6
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      color = pal[length(pal) - 1],
+      hjust = 0.5, vjust = -10, face = "bold"
+    ),
+    plot.caption = element_text(
+      size = 9, color = "grey60",
+      hjust = 0.5, vjust = 0,
+      margin = margin(t = 5, b = 10)
+    ),
+    legend.text = element_text(
+      size = 10,
+      color = "grey20"
+    ),
+    legend.title = element_text(
+      size = 11,
+      color = "grey20"
+    ),
+    legend.position = "bottom"
+  )
+
+#----------TRIAL--------------
+
+breaks <- c(0,150,650,1500,4000,8000,18000,35000,60000)
+
+ukraine_sf_cuts2 <- ukraine_sf %>%
+  mutate(values_cut = cut(total_pop, breaks, dig.lab = 5))
+
+#labels for legend keys
+labs_plot <- prettyNum(breaks[-1], big.mark = ",")
+labs_plot[1] <- "< 150"
+labs_plot[8] <- "> 60,000"
+
+# Palette
+palette3 <- c("#A71B4BCC", "#AB4A3D","#E5610ACC", "#F6AD3ECC", "#D0F4B1CC", "#52CFB0CC",
+              "#0099B5CC","#584B9FCC")
+
+palette3 <- c("#D0F4B1CC","#A71B4BCC", "#0099B5CC", "#F6AD3ECC", "#52CFB0CC", "#AB4A3D",
+              "#E5610ACC", "#584B9FCC" )
+
+
+ggplot(ukraine_sf_cuts2) +
+  geom_sf(aes(fill = values_cut), linewidth = 0, color = NA, alpha = 0.9) +
+  geom_sf(data = country_lines, col = "black", linewidth = 0.1) +
+  # Center in Europe: EPSG 3035
+  coord_sf(
+    xlim = c(2377294, 7453440),
+    ylim = c(1313597, 5628510)
+  ) +
+  labs(
+    title = "Ukrainian Population in EU in 2021",
+    subtitle = "NUTS-3 level",
+    caption = paste0(
+      "Source: Eurostat, ", gisco_attributions(),
+      "\nBased on Milos Popovic: https://milospopovic.net/how-to-make-choropleth-map-in-r/"
+    )
+  ) +
+  scale_fill_manual(
+    name = "people per sq. kilometer",
+    values = palette3,
+    labels = labs_plot,
+    drop = FALSE,
+    na.value = "#FCFFC9",
     guide = guide_legend(
       direction = "horizontal",
       keyheight = 0.5,
