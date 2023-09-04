@@ -10,13 +10,14 @@ library(sf)
 library(giscoR)
 library(eurostat)
 library(jsonlite)
+library(scales) # to see the palettes using `show_col(colors = pal)`
 
 #set the cache directory.
 
 #path to data directory
 data_dir_path <- paste0(getwd(), "/data/gisco_datasets")
 #set the directory for caching Eurostat datasets
-gisco_set_cache_dir(data_dir_path, install = T)
+#gisco_set_cache_dir(data_dir_path, install = T)
 
 
 
@@ -70,6 +71,9 @@ pal <- c("black", hcl.colors(length(breaks) - 2,
                              palette = "Spectral",
                              alpha = 0.9
 ))
+
+##to see all the colors in Plots window of RStudio
+scales::show_col(colours = pal)
 
 eu_map <- ggplot(data = grid_2021)+
   geom_sf(aes(fill = popden_cut), color = NA, linewidth = 0)
