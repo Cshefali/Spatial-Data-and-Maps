@@ -18,7 +18,8 @@ working_dir <- getwd()
 cache_directory <- file.path(working_dir, "data/eu-unemployment")
 
 #set path to cache the dataset
-set_eurostat_cache_dir(cache_dir = cache_directory, install = T)
+set_eurostat_cache_dir(cache_dir = cache_directory, install = T,
+                       overwrite = T)
 
 #in this dataframe, NUTS-2 regions are represented by 'geo'
 #data_with_code <- eurostat::get_eurostat(id = "lfst_r_lfu3rt", cache = T)
@@ -76,10 +77,10 @@ nuts2_crop <- nuts2 %>% select(NUTS_ID, LEVL_CODE,CNTR_CODE,NAME_LATN, geometry)
 all_nuts <- dplyr::bind_rows(nuts0_crop, nuts1_crop, nuts2_crop) %>% arrange(NUTS_ID)
 
 
-data_merged1 <- data_2022 %>%
-                  select(age, geo, values) %>% 
-                  left_join(all_nuts,
-                            by = c("geo" = "NUTS_ID"))
+data_nuts_merged <- data_2022 %>%
+                      select(age, geo, values) %>% 
+                      left_join(all_nuts,
+                                by = c("geo" = "NUTS_ID"))
 
 country_level_data <- data_2022 %>% 
                         select(age, geo, values) %>% 
@@ -112,22 +113,67 @@ summary(age_15_74$values)
 #create breaks
 breaks <- c(0, 3.1, 4.5, 6.2, 9.0, ceiling(max(age_15_74$values, na.rm = T))+1)
 
-#trying breaks on a random sample
-
-temp <- age_15_74$values[sample(nrow(age_15_74), 50)]
-cut(temp, breaks = breaks, include.lowest = T)
-
 #create intervals
 age_15_74$perc_range <- cut(age_15_74$values, breaks = breaks,
                             include.lowest = T)
 
 #minor alterations in breaks to make legend labels better
 legend_labels <- prettyNum(breaks)
-legend_labels[1] <- "<3.1"
+legend_labels <- c("< 3.1", "3.1 - <4.5", "4.5 - <6.2", "6.2 - <9.0", ">=9.0")
 #legend_labels[4] <- 
+
 #MAP
 
+#set a color palette
+palette1 <- hcl.colors(n = length(breaks)-1, palette = "Lajolla")
+color_palette <- c("#F0E298", "#E09D34", "#B75437", "#631C37", "#1D0B14")
+
+scales::show_col(palette)
+
+#country boundaries
+country_lines <- nuts0 %>% st_cast("MULTILINESTRING")
+
+caption_text <- paste0("Source: Eurostat\n ", gisco_attributions())
 
 #basic Europe map
 ggplot(data = age_15_74)+
-  geom_sf(aes(geometry = geometry))
+  geom_sf(aes(geometry = geometry, fill = perc_range))+
+  geom_sf(data = country_lines, color = "black", linewidth = 0.4)+
+  coord_sf(
+    xlim = c(-25,45), ylim = c(30,75), expand = T
+  )+
+  labs(
+    title = "EU Unemployment Rate, 2022",
+    subtitle = "(share of labour force aged 15-74 years, NUTS-2 regions)",
+    caption = caption_text
+  )+
+  scale_fill_manual(
+    name = "EU = 6.2%",
+    values = palette1,
+    labels = legend_labels,
+    drop = F,
+    guide = guide_legend(
+              direction = "horizontal",
+              keyheight = 0.35,
+              keywidth = 2.50,
+              title.position = "top",
+              label.position = "bottom",
+              title.hjust = 0.5,
+              label.hjust = 0.5,
+              nrow = 1,
+              byrow = T,
+              reverse = T
+    )
+  )+
+  theme_void()+
+  #theme
+  theme(
+    #LEGEND
+    legend.title = element_text(size = 7, face = "bold"),
+    legend.text = element_text(size = 5, face = "bold"),
+    legend.position = "bottom"
+    #CAPTION
+    
+  )
+
+##Take help from- https://cran.r-project.org/web/packages/giscoR/vignettes/giscoR.html
