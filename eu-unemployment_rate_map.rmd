@@ -24,7 +24,15 @@ For more details on **emo**, refer [this Github page](https://github.com/hadley/
 
 ### Introduction:  
 
-#### 1. Packages used:  
+#### 1. Process: 
+
+The process to be followed is pretty straight-forward.  
+- First we work on the data to be represented in the map, here unemployment rate. This data is fetched using **eurostat** package functions.  
+- Then, we fetch the shapefiles for all NUTS-2 regions, countries and their respective boundaries using **giscoR** package.  
+- Then, we merge these two dataframes to get one consolidated df with spatial data as well as the content to be displayed.  
+- Then we use **`geom_sf()`** function to build the map. **"sf"** means simple features; it refers to the geometrical objects present in our data like polygons, lines or points.
+
+#### 2. Packages used:  
 
 - **`tidyverse`-** Main package for data manipulation and visualizations. I've loaded the entire metapackage as a force of habit, but loading **`dplyr`** and **`ggplot2`** will do the job.  
 
@@ -63,7 +71,6 @@ cache_directory <- file.path(working_dir, "data/eu-unemployment")
 
 - The datasets are of large size. Setting a cache directory here and **`cache = TRUE`** in upcoming data extraction functions helps to download the data in the target directory.  
 - The files get stored in **.rds** format and can be read using **`read_rds()`** of `readr` package.  
-The baseR function for the same is **`readRDS()`** if you do not wish to use readr.
 
 
 ```{r set-cache-dir, message=FALSE, warning=FALSE}
@@ -72,7 +79,7 @@ set_eurostat_cache_dir(cache_dir = cache_directory, install = T,
                        overwrite = T)
 ```  
 
-#### 2. Dataset:  
+#### 3. Dataset:  
 
 I've mapped the unemployment rates in EU at NUTS-2 level. Each of these Eurostat datasets have been given a code in the database. The code for data used here is- **lfst_r_lfu3rt**.  
 
@@ -83,13 +90,264 @@ I've mapped the unemployment rates in EU at NUTS-2 level. Each of these Eurostat
 
 **Detailed Datasets-->General and regional statistics-->Regional Statistics by NUTS classification (reg)-->Regional labour market statistics (reg_lmk)-->Regional unemployment LFS annual series-->Unemployment rates by sex, age, educational attainment level and NUTS 2 regions (%) (lfst_r_lfu3rt).**  
 
-- 
+- To download the data for the first time, use the **`get_eurostat()`** function of `eurostat` package. To download the data in cache directory, keep `cache=T`; to get full labels in each columns instead of code, keep `type = 'labels'`. Default is `type = 'code'`.
 
-
+For .e.g.,  
+ - `type='labels'` gives full statements like "Greater than 25 years", "From 15 to 74 years" in the "age" column.  
+ - `type='code'` gives short codes like "Y_GE25" & "Y15-74" for the same values.  
+ 
 
 ```{r data-download}
 #data_with_code <- eurostat::get_eurostat(id = "lfst_r_lfu3rt", cache = T)
 ```
+
+Since, I already have the data downloaded, I've used **`read_rds()`** of `readr` package to read the rds file.  
+The baseR function for the same is **`readRDS()`** if you do not wish to use readr.  
+
+```{r read-rds-file}
+#read the data_with_code from cache directory
+data_with_code <- read_rds(file = paste0(cache_directory, "/lfst_r_lfu3rt_code.rds"))
+#make a copy
+data_with_code2 <- data_with_code
+```  
+
+#### 4. Column description:  
+
+- **isced11-** The education level as defined in the Eurostat database. The full form is ***International Standard Classification of Education (ISCED 2011)***. For e.g.  
+      - **ED0-2** refers to less than primary education.  
+      - **NRP** refers to No response received.  
+      - **TOTAL** means All ISCED 2011 levels.  
+      - **UNK** means Unknown.  
+      To search what any given code means in this column, use [this data dictionary](https://dd.eionet.europa.eu/vocabulary/eurostat/isced11/view) of Eurostat.  
+      
+- **age-** contains different age ranges like Y15-24, Y35-44, Y_GE15 etc. I will be using rows with age group Y15-74.  
+
+- **unit-** is nothing but **"PC"**, the measurement unit for unemployment in this dataframe. Here, it is percentage. There is another table with total count of unemployed people, not percentage. It has a different Eurostat code and can be found on the database page linked above.  
+
+- **geo-** contains code of all NUTS levels- 0, 1 and 2 for each country. Note, although, on the database page, this file indicates data for NUTS-2 regions, it contains rows with NUTS-0 and NUTS-1 levels too.  
+    For e.g., in case of Austria, unemployment rate is present for:  
+    - **"AT"** (Austria), which is the country's estimate,  
+    - **"AT1", "AT2", "AT3"** which are NUTS-1 regions- ***Eastern Austria (Ostösterreich), Southern Austria (Südösterreich), Western Austria (Westösterreich)***.  
+    - **"AT11", "AT12", "AT13", "AT21", "AT22", "AT31", "AT32", "AT33", "AT34"** which are NUTS-2 level classification.  
+
+- **time-** contains dates ranging from 1999 to 2022. Dates are in format- YYYY-01-01.  
+
+- **values-** contains estimated percentage unemployment rate.  
+
+
+```{r view-column-names}
+colnames(data_with_code2)
+```
+
+
+
+```{r summary-time-column}
+#let's see the time range of this data
+summary(data_with_code2$time)
+```  
+
+Time column has been converted to type **POSIXlt** in order to apply **`year()`** function of `lubridate` to filter out data for 2022 later.
+
+```{r convert-time}
+#convert time column to date format
+data_with_code2$time <- as.POSIXlt(data_with_code$time)
+
+```
+
+```{r data-2022}
+#filter data for the year 2022
+data_2022 <- data_with_code2 %>% filter(year(time) == 2022)
+
+```  
+
+The data we are concerned with here is unemployment rate in EU at NUTS-2 level for all people (both male and female; no transgender category in sex column.) and all levels of education (denoted by "TOTAL" in the isced11 column.), within the age group 15-74 years.  
+
+Keeping this in mind, some filters have been applied below.  
+
+
+```{r filter-data}
+#filter out data with "TOTAL" education level
+data_2022 <- data_2022 %>% filter(isced11 == "TOTAL", sex == "T")
+#remove ""EU27_2020" from geo column
+data_2022 <- data_2022 %>% filter(!geo %in% c("EU27_2020", "EA20"))
+
+```  
+
+```{r fetch-nuts-data}
+#fetch spatial data for all NUTS 0,1,2 regions
+
+nuts0 <- gisco_get_nuts(year = "2021", cache = T, nuts_level = 0,
+                        resolution = "20")
+nuts1 <- gisco_get_nuts(year = "2021", nuts_level = 1, resolution = "20",
+                        cache = T)
+nuts2 <- gisco_get_nuts(year = "2021", cache = T, resolution = "20",
+                        nuts_level = 2)
+```
+
+
+```{r crop-nuts-df}
+#create a subset of the NUTS-2 df
+nuts0_crop <- nuts0 %>% select(NUTS_ID,LEVL_CODE,CNTR_CODE,NAME_LATN, geometry)
+nuts1_crop <- nuts1 %>% select(NUTS_ID,LEVL_CODE,CNTR_CODE,NAME_LATN, geometry)
+nuts2_crop <- nuts2 %>% select(NUTS_ID, LEVL_CODE,CNTR_CODE,NAME_LATN, geometry)
+
+all_nuts <- dplyr::bind_rows(nuts0_crop, nuts1_crop, nuts2_crop) %>% arrange(NUTS_ID)
+
+```
+
+```{r subset-data-level-wise}
+country_level_data <- data_2022 %>% 
+                        select(age, geo, values) %>% 
+                        inner_join(nuts0_crop,
+                                  by = c("geo" = "NUTS_ID"))
+
+state_level_data <- data_2022 %>% 
+                      select(age, geo, values) %>% 
+                      inner_join(nuts1_crop,
+                                 by = c("geo" = "NUTS_ID"))
+
+district_level_data <- data_2022 %>% 
+                          select(age, geo, values) %>% 
+                          inner_join(nuts2_crop,
+                                     by = c("geo" = "NUTS_ID"))
+
+```
+
+```{r age-15-74}
+#age = Y15-74
+age_15_74 <- district_level_data %>% filter(age == "Y15-74") %>% select(-age)
+```
+
+```{r percentage-range}
+#check the range of percentage values
+summary(age_15_74$values)
+```
+
+```{r perc-intervals}
+#create breaks
+breaks <- c(0, 3.1, 4.5, 6.2, 9.0, ceiling(max(age_15_74$values, na.rm = T))+1)
+
+#create intervals
+age_15_74$perc_range <- cut(age_15_74$values, breaks = breaks,
+                            include.lowest = T)
+```
+
+```{r labels-for-legend-keys}
+legend_labels <- c("< 3.1", "3.1 - <4.5", "4.5 - <6.2", "6.2 - <9.0", 
+                   ">=9.0", "data not available")
+```
+
+### 2. Map Creation
+
+```{r}
+#Map of entire Europe
+europe <- gisco_get_countries(year = "2020", region = "Europe")
+
+```
+
+```{r col-palette}
+#set a color palette
+palette1 <- hcl.colors(n = length(breaks)-1, palette = "Lajolla")
+#see the palette
+scales::show_col(palette1)
+```  
+
+```{r}
+#country boundaries
+country_lines <- nuts0 %>% st_cast("MULTILINESTRING")
+
+#NUTS-2 boundaries
+nuts2_boundary <- nuts2_crop %>% st_cast("MULTILINESTRING")
+nuts2_boundary_copy <- nuts2_boundary
+```
+
+```{r}
+#remove UK and Turkey nUts data
+nuts2_boundary_copy <- nuts2_boundary_copy %>% 
+  filter(!CNTR_CODE %in% c("UK", "TR"))
+
+```
+
+```{r}
+caption_text <- paste0("Source: Eurostat, online data code- lfst_r_lfu3rt\n ", gisco_attributions())
+
+```
+
+```{r final-map}
+(eu_map <- ggplot(data = europe)+
+  geom_sf()+
+  #creates NUTS-2 regions with given region shape
+  geom_sf(data = age_15_74, aes(geometry = geometry, fill = perc_range))+
+  #creates NUTS-2 boundaries
+  geom_sf(data = nuts2_boundary_copy, color = "grey50",linewidth = 0.05)+
+  geom_sf(data = country_lines, color = "black", linewidth = 0.4)+
+  coord_sf(
+    xlim = c(-25,45), ylim = c(30,75), expand = T
+  )+
+  labs(
+    title = "EU Unemployment Rate, 2022",
+    subtitle = "(share of labour force aged 15-74 years, NUTS-2 regions)",
+    caption = caption_text
+  )+
+  scale_fill_manual(
+    name = "Unemployment avg. for EU = 6.2%",
+    values = palette1,
+    labels = legend_labels,
+    drop = F,
+    na.value = "grey",
+    guide = guide_legend(
+      direction = "horizontal",
+      keyheight = 0.35,
+      keywidth = 2.80,
+      title.position = "top",
+      label.position = "bottom",
+      title.hjust = 0.5,
+      label.hjust = 0.5,
+      nrow = 1,
+      byrow = T
+      #reverse = T
+    )
+  )+
+  theme_void()+
+  #theme
+  theme(
+    #LEGEND
+    legend.title = element_text(size = 7, face = "bold", color = "black"),
+    legend.text = element_text(size = 5, face = "bold", color = "black"),
+    legend.position = "bottom",
+    #Title, subtitle &  caption
+    plot.title = element_text(size = 11, hjust = 0.5, color = "black"),
+    plot.title.position = "plot",
+    plot.subtitle = element_text(size = 10, hjust = 0.5, color = "black"),
+    plot.caption = element_text(hjust = 0.5, color = "black")
+    #background of the plot
+    #plot.background = element_rect(fill = "white"),
+    #panel.background = element_rect(fill = "white"),
+    #panel.grid = element_line(colour = "black", linewidth = 0.05)
+    
+  ))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
