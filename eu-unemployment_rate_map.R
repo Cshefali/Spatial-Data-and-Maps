@@ -57,12 +57,11 @@ geo_ea20 <- data_with_code[data_with_code2$geo == "EA20",]
 #UNK is unknown, NRP is No Response, TOTAL means All ISCED 2011 levels.
 
 #filter out data with "TOTAL" education level
-
 data_2022 <- data_2022 %>% filter(isced11 == "TOTAL", sex == "T")
 #remove ""EU27_2020" from geo column
 data_2022 <- data_2022 %>% filter(!geo %in% c("EU27_2020", "EA20"))
 
-#fetch spatial data for all NUTS 0,12 regions
+#fetch spatial data for all NUTS 0,1,2 regions
 
 nuts0 <- gisco_get_nuts(year = "2021", cache = T, nuts_level = 0,
                         resolution = "20")
@@ -125,14 +124,6 @@ legend_labels <- c("< 3.1", "3.1 - <4.5", "4.5 - <6.2", "6.2 - <9.0",
                    ">=9.0", "data not available")
 
 
-#SO
-scale_fill_discrete(
-  labels = function(breaks) {breaks[is.na(breaks)] <- "unknown"; breaks},
-  na.value = "green"
-)
-
-
-labels(age_15_74$perc_range)
 
 #MAP
 
