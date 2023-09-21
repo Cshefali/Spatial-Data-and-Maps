@@ -1,0 +1,97 @@
+---
+title: "Map of EU Countries using giscoR"
+author: "Shefali C."
+date: "2023-09-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-emo, message=FALSE, warning=FALSE, include=FALSE}
+library(emo)
+```
+
+
+This notebook is an attempt to recreate map of member states of European Union as seen in [this](https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Unemployment_statistics_at_regional_level#Regional_variations_in_youth_unemployment) article by Eurostat, using R and **`giscoR`** package.  
+I've tried explaining each step in the process; I hope this will be helpful for those getting started with **`giscoR`** and **`eurostat`** packages. `r emo::ji("smile")`  
+
+(**Sidenote:** If you wish to include emojis in your notebook, install the  **`emo`** package.  
+And use following inline code to insert emoji: **`\r emo::ji("happy")`**.  
+For more details on **emo**, refer [this Github page](https://github.com/hadley/emo).)  
+
+
+### Introduction:  
+
+#### 1. Packages used:  
+
+- **`tidyverse`-** Main package for data manipulation and visualizations. I've loaded the entire metapackage as a force of habit, but loading **`dplyr`** and **`ggplot2`** will do the job.  
+
+- **`giscoR`-** This package is needed to get shapefiles for all countries and NUTS-2 regions. Shapefiles here include ***MULTIPOLYGONS*** for shape of each region and ***MULTILINESTRING*** for creating boundaries.  
+
+- **`eurostat`-** Unemployment rate in EU member states for the year 2022 has been fetched using this package.  
+
+- **`sf`-** This package is the backbone for working on spatial data in R. It is required to create maps.  
+
+- **`colorspace`-** While creating the maps, I tried several color palettes for the cholopleth map. **colorspace** helps to visualize color swatches of all the palettes.  
+
+- **`lubridate`-** Used for manipulation of date column in the dataset.  
+
+
+```{r load-libraries, warning=FALSE, message=FALSE}
+#main package for data manipulation and viz
+library(tidyverse)
+#to fetch datasets
+library(giscoR)
+library(eurostat)
+#sf required for spatial data mapping
+library(sf)
+#to see color-swatches of palettes
+library(colorspace)
+#to work on dates column
+library(lubridate)
+#library(plotly)
+```
+
+
+```{r get-dirs}
+working_dir <- getwd()
+cache_directory <- file.path(working_dir, "data/eu-unemployment")
+
+```  
+
+- The datasets are of large size. Setting a cache directory here and **`cache = TRUE`** in upcoming data extraction functions helps to download the data in the target directory.  
+- The files get stored in **.rds** format and can be read using **`read_rds()`** of `readr` package.  
+The baseR function for the same is **`readRDS()`** if you do not wish to use readr.
+
+
+```{r set-cache-dir, message=FALSE, warning=FALSE}
+#set path to cache the dataset
+set_eurostat_cache_dir(cache_dir = cache_directory, install = T,
+                       overwrite = T)
+```  
+
+#### 2. Dataset:  
+
+I've mapped the unemployment rates in EU at NUTS-2 level. Each of these Eurostat datasets have been given a code in the database. The code for data used here is- **lfst_r_lfu3rt**.  
+
+- List of entire datasets available- [Eurostat Database](https://ec.europa.eu/eurostat/data/database).  
+
+- Expand the navigation tree to fetch data of your choice. For labour-force datasets, follow the directions below:  
+
+
+**Detailed Datasets-->General and regional statistics-->Regional Statistics by NUTS classification (reg)-->Regional labour market statistics (reg_lmk)-->Regional unemployment LFS annual series-->Unemployment rates by sex, age, educational attainment level and NUTS 2 regions (%) (lfst_r_lfu3rt).**  
+
+- 
+
+
+
+```{r data-download}
+#data_with_code <- eurostat::get_eurostat(id = "lfst_r_lfu3rt", cache = T)
+```
+
+
+
+
+
