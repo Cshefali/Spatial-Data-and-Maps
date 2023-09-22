@@ -60,6 +60,7 @@ library(colorspace)
 #to work on dates column
 library(lubridate)
 #library(plotly)
+library(patchwork)
 ```
 
 
@@ -80,6 +81,8 @@ set_eurostat_cache_dir(cache_dir = cache_directory, install = T,
 ```  
 
 #### 3. Dataset:  
+
+[Note: The downloaded data also contains candidate countries like Serbia, Turkey etc. which are on the road to EU membership.]
 
 I've mapped the unemployment rates in EU at NUTS-2 level. Each of these Eurostat datasets have been given a code in the database. The code for data used here is- **lfst_r_lfu3rt**.  
 
@@ -243,11 +246,213 @@ data_nuts_merged <- data_2022 %>%
 ```
 
 ```{r}
+#country-level unemployment rates
+nuts0_data <- final_data %>% 
+                inner_join(nuts0_crop,
+                           by = c("geo" = "NUTS_ID"))
+#district-level unemployment rates
+nuts2_data <- final_data %>% 
+                      inner_join(nuts2_crop,
+                                 by = c("geo" = "NUTS_ID"))
+```
+
+
+```{r}
 #add the English names of countries in nuts dataframe
-final_spatial_data <- data_nuts_merged %>% 
+final_nuts0_data <- nuts0_data %>% 
+                        inner_join(country_codes_names,
+                                   by = "CNTR_CODE")
+
+
+final_nuts2_data <- nuts2_data %>% 
                         inner_join(country_codes_names,
                                    by = "CNTR_CODE")
 ```
+
+#### 4 countries with highest/lowest unemployment rates compared to EU average  
+
+```{r}
+
+#countries with highest unemployment rates
+bottom4_countries <- final_nuts0_data %>% slice_max(order_by = values,
+                                                    n = 4)
+
+#countries with lowest unemployment rates
+top4_countries <- final_nuts0_data %>% slice_min(order_by = values, n = 4)
+```
+
+```{r}
+#nuts2 regions of bottom4 countries
+bottom4_nuts <- final_nuts2_data %>% 
+                  filter(CNTR_CODE %in% bottom4_countries$CNTR_CODE)
+#nuts2 regions of top4 countries
+top4_nuts <- final_nuts2_data %>% 
+                  filter(CNTR_CODE %in% top4_countries$CNTR_CODE)
+```
+
+```{r}
+unique(bottom4_nuts$CNTR_NAME)
+```
+
+```{r}
+unique(top4_nuts$CNTR_NAME)
+```
+
+```{r}
+#Boundary lines of countries and nuts regions.
+#country boundaries
+country_boundary <- nuts0_crop %>% st_cast("MULTILINESTRING")
+
+#NUTS-2 boundaries
+nuts2_boundary <- nuts2_crop %>% st_cast("MULTILINESTRING")
+#make a copy and remove UK data
+nuts2_boundary_copy <- nuts2_boundary %>% 
+                        filter(!CNTR_CODE %in% c("UK"))
+
+  
+```
+
+```{r}
+bottom4_country_boundary <- country_boundary %>% filter(CNTR_CODE %in% bottom4_countries$CNTR_CODE)
+
+top4_country_boundary <- country_boundary %>% filter(CNTR_CODE %in% top4_countries$CNTR_CODE)
+
+bottom4_nuts_boundary <- nuts2_boundary_copy %>% filter(CNTR_CODE %in% bottom4_countries$CNTR_CODE)
+
+top4_nuts_boundary <- nuts2_boundary_copy %>% filter(CNTR_CODE %in% top4_countries$CNTR_CODE)
+```
+
+```{r}
+#define color palette based on class intervals
+color_palette <- c("[0,3.1]" = "#FCFFC9",
+                    "(3.1,4.5]" = "#E8C167",
+                  "(4.5,6.2]"  = "#D67500",
+                  "(6.2,9]" = "#913640",
+                  "(9,30]" = "#1D0B14")
+```
+
+```{r}
+unique(top4_nuts$CNTR_CODE)
+```
+
+
+
+```{r}
+(czechia <- ggplot(data = top4_nuts %>% filter(CNTR_CODE == "CZ"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = top4_country_boundary %>% filter(CNTR_CODE == "CZ"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = top4_nuts_boundary %>% filter(CNTR_CODE == "CZ"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Czechia")
+)
+```
+
+```{r}
+(germany <- ggplot(data = top4_nuts %>% filter(CNTR_CODE == "DE"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = top4_country_boundary %>% filter(CNTR_CODE == "DE"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = top4_nuts_boundary %>% filter(CNTR_CODE == "DE"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Germany")
+)
+```
+
+```{r}
+(malta <- ggplot(data = top4_nuts %>% filter(CNTR_CODE == "MT"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = top4_country_boundary %>% filter(CNTR_CODE == "MT"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = top4_nuts_boundary %>% filter(CNTR_CODE == "MT"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Malta")
+)
+```
+
+```{r}
+(poland <- ggplot(data = top4_nuts %>% filter(CNTR_CODE == "PL"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = top4_country_boundary %>% filter(CNTR_CODE == "PL"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = top4_nuts_boundary %>% filter(CNTR_CODE == "PL"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Poland")
+)
+```
+
+```{r}
+czechia+germany+malta+poland
+```
+
+```{r}
+unique(bottom4_nuts$CNTR_CODE)
+unique(bottom4_nuts$CNTR_NAME)
+```
+```{r}
+(greece <- ggplot(data = bottom4_nuts %>% filter(CNTR_CODE == "EL"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = bottom4_country_boundary %>% filter(CNTR_CODE == "EL"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = bottom4_nuts_boundary %>% filter(CNTR_CODE == "EL"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Greece")
+)
+```
+
+```{r}
+(spain <- ggplot(data = bottom4_nuts %>% filter(CNTR_CODE == "ES"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = bottom4_country_boundary %>% filter(CNTR_CODE == "ES"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = bottom4_nuts_boundary %>% filter(CNTR_CODE == "ES"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Spain")
+)
+```
+
+```{r}
+(italy <- ggplot(data = bottom4_nuts %>% filter(CNTR_CODE == "IT"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = bottom4_country_boundary %>% filter(CNTR_CODE == "IT"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = bottom4_nuts_boundary %>% filter(CNTR_CODE == "IT"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Italy")
+)
+```
+
+```{r}
+(serbia <- ggplot(data = bottom4_nuts %>% filter(CNTR_CODE == "RS"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = bottom4_country_boundary %>% filter(CNTR_CODE == "RS"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = bottom4_nuts_boundary %>% filter(CNTR_CODE == "RS"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Serbia")
+)
+```
+
+```{r}
+greece+spain+italy+serbia
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
