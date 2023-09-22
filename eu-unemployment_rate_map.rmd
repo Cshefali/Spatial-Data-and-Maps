@@ -154,24 +154,24 @@ data_with_code2$time <- as.POSIXlt(data_with_code$time)
 
 ```
 
-```{r data-2022}
-#filter data for the year 2022
-data_2022 <- data_with_code2 %>% filter(year(time) == 2022)
-
-```  
-
 The data we are concerned with here is unemployment rate in EU at NUTS-2 level for all people (both male and female; no transgender category in sex column.) and all levels of education (denoted by "TOTAL" in the isced11 column.), within the age group 15-74 years.  
 
 Keeping this in mind, some filters have been applied below.  
 
-
-```{r filter-data}
-#filter out data with "TOTAL" education level
-data_2022 <- data_2022 %>% filter(isced11 == "TOTAL", sex == "T")
-#remove ""EU27_2020" from geo column
+```{r data-2022}
+#filter data for the year 2022
+data_2022 <- data_with_code2 %>% filter(year(time) == 2022,
+                                        isced11 == "TOTAL", 
+                                        sex == "T")
+#remove regions with listed names
 data_2022 <- data_2022 %>% filter(!geo %in% c("EU27_2020", "EA20"))
-
 ```  
+
+The giscoR function **gisco_get_nuts()`** retrieves regional information and geometries of NUTS levels. Here:  
+1. nuts0- contains country level data, shapefiles, country name etc.  
+2. nuts1- contains same data but at state levels.  
+3. nuts2- contains data at district-level for all EU countries.  
+
 
 ```{r fetch-nuts-data}
 #fetch spatial data for all NUTS 0,1,2 regions
@@ -182,7 +182,10 @@ nuts1 <- gisco_get_nuts(year = "2021", nuts_level = 1, resolution = "20",
                         cache = T)
 nuts2 <- gisco_get_nuts(year = "2021", cache = T, resolution = "20",
                         nuts_level = 2)
-```
+```  
+
+I've kept only columns needed for our task here.  
+These dataframes contain spatial objects. These will be merged with our main content, i.e. unemployment rate dataframe `data_2022`.  
 
 
 ```{r crop-nuts-df}
@@ -193,7 +196,9 @@ nuts2_crop <- nuts2 %>% select(NUTS_ID, LEVL_CODE,CNTR_CODE,NAME_LATN, geometry)
 
 all_nuts <- dplyr::bind_rows(nuts0_crop, nuts1_crop, nuts2_crop) %>% arrange(NUTS_ID)
 
-```
+```  
+
+`district_level_data` contains data for NUTS-2 regions only which is what we need to create the map.  
 
 ```{r subset-data-level-wise}
 country_level_data <- data_2022 %>% 
@@ -213,6 +218,64 @@ district_level_data <- data_2022 %>%
 
 ```
 
+## MAP 1: TOP 4 COUNTRIES WITH UNEMPLOYMENT RATE BELOW EU AVERAGE:  
+
+```{r country-level-data}
+country_age_15_74 <- country_level_data %>% filter(age == "Y15-74")
+bottom4_countries <- country_age_15_74 %>% slice_max(order_by = values, n = 4)
+top4_countries <- country_age_15_74 %>% slice_min(order_by = values, n = 4)
+
+bottom4_nuts <- district_level_data %>% 
+                  filter(CNTR_CODE %in% bottom4_countries$CNTR_CODE)
+top4_nuts <- district_level_data %>% 
+                  filter(CNTR_CODE %in% bottom4_countries$CNTR_CODE)
+
+
+```
+
+```{r merge-dataset}
+top4_data <- bind_rows(top4_countries, top4_nuts) %>% arrange(CNTR_CODE)
+bottom4_data <- bind_rows(bottom4_countries, bottom4_nuts) %>% arrange(CNTR_CODE)
+
+```
+
+```{r}
+top4_age15_74 <- top4_data %>% filter(age == "Y15-74") %>% select(-age)
+bottom4_age15_74 <- bottom4_data %>% filter(age == "Y15-74") %>% select(-age)
+```
+
+```{r}
+#add a column for intervals
+top4_breaks <- c(0, 3.1, 4.5, 6.2, 9.0, ceiling(max(top4_age15_74$values, na.rm = T))+1)
+
+#create intervals
+top4_age15_74$perc_range <- cut(top4_age15_74$values, breaks = top4_breaks,
+                            include.lowest = T)
+```
+
+
+
+```{r}
+#Adding smaller regions in a separate box
+color_palette2 <- c("[0,3.1]" = "#FCFFC9",
+                    "(3.1,4.5]" = "#E8C167",
+                  "(4.5,6.2]"  = "#D67500",
+                  "(6.2,9]" = "#913640",
+                  "(9,30]" = "#1D0B14")
+```
+
+"CZ" "DE" "EL" "ES" "IT" "MT" "PL" "RS"
+
+```{r top4-countries}
+ggplot(data = top4_age15_74 %>% filter(CNTR_CODE == "RS"))+
+  geom_sf(aes(geometry = geometry, fill = perc_range))+
+  #labs(title = "Greece")+
+  scale_fill_manual(values = color_palette2)
+
+```
+
+
+
 ```{r age-15-74}
 #age = Y15-74
 age_15_74 <- district_level_data %>% filter(age == "Y15-74") %>% select(-age)
@@ -222,6 +285,10 @@ age_15_74 <- district_level_data %>% filter(age == "Y15-74") %>% select(-age)
 #check the range of percentage values
 summary(age_15_74$values)
 ```
+
+
+
+
 
 ```{r perc-intervals}
 #create breaks
