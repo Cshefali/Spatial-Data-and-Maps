@@ -340,7 +340,7 @@ unique(top4_nuts$CNTR_CODE)
 ```{r}
 (czechia <- ggplot(data = top4_nuts %>% filter(CNTR_CODE == "CZ"))+
               geom_sf(aes(geometry = geometry, fill = perc_range))+
-              geom_sf(data = top4_country_boundary %>% filter(CNTR_CODE == "CZ"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = top4_country_boundary %>% filter(CNTR_CODE == "CZ"), aes(geometry = geometry), linewidth = 0.8, color = "black", linetype = "solid")+
               geom_sf(data = top4_nuts_boundary %>% filter(CNTR_CODE == "CZ"), aes(geometry = geometry),
                       linewidth = 0.5, color = "grey80")+
               scale_fill_manual(values = color_palette)+
@@ -358,6 +358,18 @@ unique(top4_nuts$CNTR_CODE)
               labs(title = "Germany")
 )
 ```
+
+```{r}
+(germany2 <- ggplot(data = top4_nuts %>% filter(CNTR_CODE == "DE"))+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = top4_country_boundary %>% filter(CNTR_CODE == "DE"), aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = top4_nuts_boundary %>% filter(CNTR_CODE == "DE"), aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              scale_fill_manual(values = color_palette)+
+              labs(title = "Germany")
+)
+```
+
 
 ```{r}
 (malta <- ggplot(data = top4_nuts %>% filter(CNTR_CODE == "MT"))+
@@ -384,6 +396,22 @@ unique(top4_nuts$CNTR_CODE)
 ```{r}
 czechia+germany+malta+poland
 ```
+
+```{r}
+(bottom4_map <- top4_nuts %>% {
+              ggplot(data = .)+
+              geom_sf(aes(geometry = geometry, fill = perc_range))+
+              geom_sf(data = top4_country_boundary, aes(geometry = geometry), linewidth = 0.8, color = "black")+
+              geom_sf(data = top4_nuts_boundary, aes(geometry = geometry),
+                      linewidth = 0.5, color = "grey80")+
+              coord_sf(xlim = c(st_bbox(.$geometry)[1], st_bbox(.$geometry[3])),
+                       ylim = c(st_bbox(.$geometry[2]), st_bbox(.$geometry)[4]))+
+              scale_fill_manual(values = color_palette)+
+   facet_wrap(~CNTR_CODE)
+  }
+)
+```
+
 
 ```{r}
 unique(bottom4_nuts$CNTR_CODE)
