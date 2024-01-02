@@ -81,5 +81,13 @@ world_topo_bg
 
 ###------------
 ##URL- https://rstudio.github.io/leaflet/
+#Jan 2, 2024
 
+#creates the map widget
 m1 <- leaflet()
+#adding layers (different features) according to preference
+m1 <- m1 %>% 
+      addTiles() %>% 
+      addMarkers(lng = 174.768, lat = -36.852, 
+                 popup = "The birthplace of R")
+
